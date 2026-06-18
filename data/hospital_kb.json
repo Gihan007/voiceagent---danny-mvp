@@ -1,0 +1,79 @@
+{
+  "clinic": {
+    "name": "City Clinic",
+    "type": "outpatient medical clinic",
+    "phone": "+1 555 010 0001",
+    "address": "125 Market Street, Suite 400, Springfield",
+    "hours": {
+      "monday_friday": "8 AM to 6 PM",
+      "saturday": "9 AM to 1 PM for limited appointments",
+      "sunday": "Closed"
+    },
+    "arrival_guidance": "Patients may arrive 15 to 30 minutes early for check-in. Arriving early does not move the appointment time unless the front desk confirms an earlier slot.",
+    "parking": "Validated parking is available in the Market Street Garage. Street parking is limited.",
+    "reschedule_policy": "The clinic can note a preferred new day or time during the reminder call. Final availability is confirmed by the scheduling desk.",
+    "cancellation_policy": "Patients can cancel from the reminder call. The clinic may follow up if another appointment is needed.",
+    "emergency_guidance": "For urgent symptoms or emergencies, patients should call emergency services or go to the nearest emergency department."
+  },
+  "doctors": [
+    {
+      "display_name": "Dr. Smith",
+      "full_name": "Dr. Michael Smith",
+      "specialization": "Cardiology",
+      "department": "Heart and Vascular Care",
+      "available_days": ["Monday", "Wednesday", "Friday"],
+      "available_windows": ["9 AM to 12 PM", "2 PM to 4 PM"],
+      "bio": "Dr. Michael Smith is a cardiologist who handles routine cardiology consultations, blood pressure follow-ups, and heart-health reviews.",
+      "appointment_notes": "Current demo appointment is with Dr. Smith on Tuesday at 3 PM."
+    },
+    {
+      "display_name": "Dr. Patel",
+      "full_name": "Dr. Anika Patel",
+      "specialization": "Family Medicine",
+      "department": "Primary Care",
+      "available_days": ["Tuesday", "Thursday"],
+      "available_windows": ["8:30 AM to 11:30 AM", "1 PM to 5 PM"],
+      "bio": "Dr. Anika Patel provides primary-care visits, annual checkups, and general follow-ups."
+    },
+    {
+      "display_name": "Dr. Nguyen",
+      "full_name": "Dr. Laura Nguyen",
+      "specialization": "Dermatology",
+      "department": "Skin Health",
+      "available_days": ["Monday", "Thursday"],
+      "available_windows": ["10 AM to 1 PM", "3 PM to 5 PM"],
+      "bio": "Dr. Laura Nguyen handles dermatology consultations, skin checks, and rash evaluations."
+    },
+    {
+      "display_name": "Dr. Brown",
+      "full_name": "Dr. Emily Brown",
+      "specialization": "Orthopedics",
+      "department": "Bone and Joint Care",
+      "available_days": ["Wednesday", "Friday"],
+      "available_windows": ["9 AM to 12 PM", "1 PM to 3 PM"],
+      "bio": "Dr. Emily Brown handles bone, joint, and sports-injury consultations."
+    }
+  ],
+  "departments": [
+    {
+      "name": "Cardiology",
+      "description": "Heart and vascular care, including routine cardiology consultations and blood pressure follow-ups.",
+      "doctors": ["Dr. Michael Smith"]
+    },
+    {
+      "name": "Primary Care",
+      "description": "General health checkups, annual visits, and common medical follow-ups.",
+      "doctors": ["Dr. Anika Patel"]
+    },
+    {
+      "name": "Dermatology",
+      "description": "Skin checks, rash evaluations, and common skin-health concerns.",
+      "doctors": ["Dr. Laura Nguyen"]
+    },
+    {
+      "name": "Orthopedics",
+      "description": "Bone, joint, and sports-injury consultations.",
+      "doctors": ["Dr. Emily Brown"]
+    }
+  ]
+}

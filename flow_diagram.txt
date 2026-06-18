@@ -1,0 +1,165 @@
+User opens browser
+        |
+        v
+http://localhost:8002
+        |
+        v
+web_voice_demo.html
+        |
+        v
+Click "Start Demo"
+        |
+        v
+Browser asks for microphone permission
+        |
+        v
+Web Audio API + AudioWorklet
+web_voice_worklet.js
+        |
+        v
+Capture mic audio
+Downsample to 16 kHz PCM
+Split into small frames
+        |
+        v
+Browser WebSocket
+/ws/demo-stream
+        |
+        v
+FastAPI backend
+web_voice_demo.py
+        |
+        v
+Backend opens Deepgram WebSocket
+        |
+        v
+Browser audio frames
+        |
+        v
+Deepgram streaming STT
+        |
+        +----------------------+
+        |                      |
+        v                      v
+Interim transcript        Final / speech_final
+sent to frontend          transcript detected
+        |                      |
+        v                      v
+UI shows "hearing..."     process_transcript()
+                               |
+                               v
+                      Fast-path intent check
+                      web_voice_demo.py
+                               |
+                +--------------+--------------+
+                |                             |
+                v                             v
+     Common reply detected             Needs LLM reasoning
+     yes / yep / unavailable           |
+                |                      v
+                |              LangGraph supervisor
+                |              utils/supervisor.py
+                |                      |
+                |                      v
+                |              Select dialogue node
+                |              greeting / availability
+                |              appointment_review
+                |              reschedule / confirm
+                |              general_question / wrap_up
+                |                      |
+                |                      v
+                |              Gemini or Groq LLM
+                |              generates response
+                |                             |
+                +--------------+--------------+
+                               |
+                               v
+                    AI speech text generated
+                               |
+                               v
+                    TTS response generation
+                               |
+             +-----------------+-----------------+
+             |                                   |
+             v                                   v
+      Cartesia WebSocket TTS             Deepgram TTS fallback
+      if configured                       if Cartesia unavailable
+             |                                   |
+             +-----------------+-----------------+
+                               |
+                               v
+                    Audio token created
+                    /api/audio/{token}
+                               |
+                               v
+                    StreamingResponse / cached WAV
+                               |
+                               v
+                    Frontend receives audio_url
+                               |
+                               v
+                    Browser plays AI voice
+                               |
+                               v
+                    UI adds assistant message
+                    UI shows latency metrics
+                               |
+                               v
+                    Browser resumes listening
+                               |
+                               v
+              Loop continues until:
+              - user clicks End Call
+              - conversation state becomes ended
+              - streaming error occurs
+
+              ------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+Streaming STT instead of batch transcription
+Browser audio is streamed continuously over WebSocket to Deepgram, so the backend receives partial/final transcripts without waiting for a full recording.
+
+AudioWorklet-based microphone capture
+The frontend uses AudioWorklet to capture and send small PCM audio frames from the browser with low overhead.
+
+WebSocket transport
+Browser-to-backend audio uses a persistent WebSocket connection, avoiding repeated HTTP request setup per audio chunk.
+
+Interim transcription results
+Deepgram interim transcripts are enabled, so the UI can show what the user is saying while speech is still happening.
+
+Endpointing / speech-final handling
+Deepgram endpointing helps detect when the user has stopped speaking, reducing the delay before the AI starts processing a turn.
+
+Async FastAPI backend
+The backend uses async functions, WebSockets, and non-blocking HTTP calls so STT, LLM, and TTS work do not block the server loop.
+
+Fast-path intent handling
+Common replies like “yes,” “yep,” or “I have time” bypass the full LLM path and return predefined next-step responses with near-zero LLM latency.
+
+LangGraph state routing
+The conversation is split into smaller stateful nodes, so each LLM call is focused on the current stage instead of processing the whole call flow every time.
+
+Small, structured prompts
+Supervisor and node prompts are constrained to short responses and structured outputs, reducing token count and model latency.
+
+Fast LLM backends
+The project supports Groq and Gemini models for quick intent routing and response generation.
+
+Streaming / cached TTS
+Cartesia TTS is used when configured, and common phrases are pre-generated and cached in memory.
+
+Prewarmed common audio
+Greeting and frequent demo responses are cached during startup, making early call turns play almost instantly.
+
+In-memory audio cache
+Generated speech audio is stored briefly, so repeated phrases do not need another TTS call.
+
+Immediate browser playback
+The frontend starts playing the returned audio URL as soon as the backend provides it, reducing perceived wait time.
+
+Minimal local demo stack
+The current demo avoids Telnyx, Redis, PostgreSQL, tunnels, and other full production services, which keeps the local interaction path short.

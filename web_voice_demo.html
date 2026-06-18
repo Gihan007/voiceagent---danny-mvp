@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Voice Agent Demo</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f6f1;
+      --ink: #15231d;
+      --muted: #6b7a72;
+      --line: #d4ddd8;
+      --accent: #0e7c66;
+      --accent-strong: #0a6352;
+      --danger: #b7472a;
+      --panel: #ffffff;
+      --agent: #ebf8f2;
+      --user: #eff4ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(14, 124, 102, 0.08), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.08), transparent 24%),
+        var(--bg);
+      color: var(--ink);
+    }
+
+    main {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+    }
+
+    header {
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(14px);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .stage {
+      width: min(980px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 24px 0;
+      display: grid;
+      grid-template-rows: 180px minmax(320px, 1fr);
+      gap: 18px;
+    }
+
+    .meter, .transcript {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .meter { position: relative; }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .call-state {
+      position: absolute;
+      left: 18px;
+      top: 14px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .transcript {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .transcript-head {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .turns {
+      padding: 16px;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .empty {
+      color: var(--muted);
+      min-height: 100%;
+      display: grid;
+      place-items: center;
+      text-align: center;
+    }
+
+    .bubble {
+      max-width: min(720px, 92%);
+      padding: 12px 14px;
+      border-radius: 8px;
+      line-height: 1.45;
+      font-size: 15px;
+      overflow-wrap: anywhere;
+    }
+
+    .bubble.user {
+      align-self: flex-end;
+      background: var(--user);
+      border: 1px solid #dbe7ff;
+    }
+
+    .bubble.agent {
+      align-self: flex-start;
+      background: var(--agent);
+      border: 1px solid #cfe9df;
+    }
+
+    .metrics {
+      align-self: flex-start;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: -6px;
+    }
+
+    footer {
+      padding: 16px 24px 24px;
+      border-top: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.9);
+      display: flex;
+      justify-content: center;
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 8px;
+      min-width: 200px;
+      height: 48px;
+      font-size: 16px;
+      font-weight: 700;
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 8px 22px rgba(14, 124, 102, 0.18);
+    }
+
+    button:hover { background: var(--accent-strong); }
+    button.active {
+      background: var(--danger);
+      box-shadow: 0 8px 22px rgba(183, 71, 42, 0.16);
+    }
+
+    @media (max-width: 640px) {
+      header {
+        align-items: flex-start;
+        gap: 8px;
+        flex-direction: column;
+      }
+
+      .stage {
+        grid-template-rows: 140px minmax(340px, 1fr);
+      }
+
+      button { width: min(100%, 360px); }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Voice Agent Demo</h1>
+      <div class="status" id="status">Ready</div>
+    </header>
+
+    <section class="stage">
+      <div class="meter">
+        <div class="call-state" id="callState">Idle</div>
+        <canvas id="waveform" width="1200" height="260"></canvas>
+      </div>
+
+      <div class="transcript">
+        <div class="transcript-head">
+          <span>Conversation</span>
+          <span><span id="heardLabel">heard: none</span> / <span id="stateLabel">state: greeting</span> / <span id="voiceLabel">voice: loading</span></span>
+        </div>
+        <div class="turns" id="turns">
+          <div class="empty">Click Start Demo</div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <button id="toggle">Start Demo</button>
+    </footer>
+  </main>
+
+  <script>
+    const toggle = document.getElementById("toggle");
+    const statusEl = document.getElementById("status");
+    const turnsEl = document.getElementById("turns");
+    const callStateEl = document.getElementById("callState");
+    const stateLabel = document.getElementById("stateLabel");
+    const heardLabel = document.getElementById("heardLabel");
+    const voiceLabel = document.getElementById("voiceLabel");
+    const canvas = document.getElementById("waveform");
+    const ctx = canvas.getContext("2d");
+
+    let active = false;
+    let canSendAudio = false;
+    let aiSpeaking = false;
+    let currentAudio = null;
+    let currentState = "greeting";
+    let history = [];
+    let patientContext = null;
+    let micStream = null;
+    let audioContext = null;
+    let analyser = null;
+    let waveformData = null;
+    let workletNode = null;
+    let ws = null;
+    let latestLevel = 0;
+    let sentenceQueue = [];
+    let sentencePlaybackActive = false;
+    let streamTurnDone = false;
+    let streamDonePayload = null;
+    let streamAssistantText = "";
+    let streamMetrics = {};
+    let liveAudioStream = null;
+    let liveAudioSources = [];
+    let liveAudioNextTime = 0;
+    let liveAudioActiveStreams = 0;
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function setCallState(text) {
+      callStateEl.textContent = text;
+      stateLabel.textContent = `state: ${currentState}`;
+    }
+
+    function addBubble(role, text) {
+      const empty = turnsEl.querySelector(".empty");
+      if (empty) empty.remove();
+      const div = document.createElement("div");
+      div.className = `bubble ${role}`;
+      div.textContent = text;
+      turnsEl.appendChild(div);
+      turnsEl.scrollTop = turnsEl.scrollHeight;
+    }
+
+    function addMetrics(text) {
+      const div = document.createElement("div");
+      div.className = "metrics";
+      div.textContent = text;
+      turnsEl.appendChild(div);
+      turnsEl.scrollTop = turnsEl.scrollHeight;
+    }
+
+    function wsUrl() {
+      const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+      return `${scheme}://${window.location.host}/ws/demo-stream`;
+    }
+
+    async function ensureMic() {
+      if (micStream) return;
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+
+      audioContext = new AudioContext({ latencyHint: "interactive" });
+      await audioContext.audioWorklet.addModule(`/audio-worklet.js?ts=${Date.now()}`);
+
+      const source = audioContext.createMediaStreamSource(micStream);
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 512;
+      waveformData = new Uint8Array(analyser.frequencyBinCount);
+      workletNode = new AudioWorkletNode(audioContext, "pcm-streamer", {
+        numberOfInputs: 1,
+        numberOfOutputs: 0
+      });
+
+      workletNode.port.onmessage = event => {
+        if (!active) return;
+        if (event.data.type === "level") {
+          latestLevel = event.data.level || 0;
+          if (canSendAudio && latestLevel > 0.018) setStatus("Listening - speaking");
+          return;
+        }
+        if (event.data.type === "audio" && canSendAudio && ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(event.data.buffer);
+        }
+      };
+
+      source.connect(analyser);
+      source.connect(workletNode);
+    }
+
+    function connectStream() {
+      return new Promise((resolve, reject) => {
+        let ready = false;
+        let settled = false;
+        ws = new WebSocket(wsUrl());
+        ws.binaryType = "arraybuffer";
+        ws.onopen = () => {
+          ws.send(JSON.stringify({
+            type: "start",
+            current_state: currentState,
+            history,
+            patient_context: patientContext
+          }));
+        };
+        ws.onerror = () => {
+          if (!settled) {
+            settled = true;
+            reject(new Error("websocket failed"));
+          }
+        };
+        ws.onclose = () => {
+          if (active) setStatus("Stream disconnected");
+          if (!ready && !settled) {
+            settled = true;
+            reject(new Error("STT stream closed before ready"));
+          }
+        };
+        ws.onmessage = event => {
+          if (event.data instanceof ArrayBuffer) {
+            handleLiveAudioChunk(event.data);
+            return;
+          }
+          const data = JSON.parse(event.data);
+          if (data.type === "ready") {
+            ready = true;
+            settled = true;
+            setStatus("Streaming STT ready");
+            resolve();
+          } else if (data.type === "error" && !ready) {
+            handleStreamEvent(data);
+            settled = true;
+            reject(new Error(data.message || "STT stream failed before ready"));
+          } else {
+            handleStreamEvent(data);
+          }
+        };
+      });
+    }
+
+    function pcm16ToFloat32(arrayBuffer) {
+      const pcm = new Int16Array(arrayBuffer);
+      const floats = new Float32Array(pcm.length);
+      for (let i = 0; i < pcm.length; i += 1) {
+        floats[i] = Math.max(-1, Math.min(1, pcm[i] / 32768));
+      }
+      return floats;
+    }
+
+    function startLiveAgentAudio(data) {
+      aiSpeaking = true;
+      canSendAudio = false;
+      setStatus("Preparing voice");
+      setCallState("Preparing voice");
+      liveAudioActiveStreams += 1;
+      liveAudioStream = {
+        streamId: data.stream_id,
+        text: data.text || "",
+        node: data.node || streamMetrics.node || "n/a",
+        sentenceIndex: data.sentence_index,
+        sampleRate: data.sample_rate || 24000,
+        requestedAt: performance.now(),
+        nextTime: Math.max(audioContext.currentTime + 0.03, liveAudioNextTime),
+        shown: false,
+        ended: false,
+        doneTimer: null,
+        metrics: { ...data, ttft_ms: data.ttft_ms ?? streamMetrics.ttft_ms }
+      };
+    }
+
+    function showLiveAgentTurn() {
+      if (!liveAudioStream || liveAudioStream.shown) return;
+      liveAudioStream.shown = true;
+      const voiceWaitMs = Math.round(performance.now() - liveAudioStream.requestedAt);
+      setStatus("AI speaking");
+      setCallState("AI speaking");
+      addBubble("agent", liveAudioStream.text);
+      streamAssistantText = `${streamAssistantText} ${liveAudioStream.text}`.trim();
+      const metrics = liveAudioStream.metrics || {};
+      const ttftPart = metrics.ttft_ms === undefined || metrics.ttft_ms === null ? "" : ` / TTFT ${metrics.ttft_ms} ms`;
+      const ttsChunkPart = metrics.tts_first_chunk_ms === undefined || metrics.tts_first_chunk_ms === null ? "" : ` / TTS chunk ${metrics.tts_first_chunk_ms} ms`;
+      const sentencePart = liveAudioStream.sentenceIndex ? ` / sentence ${liveAudioStream.sentenceIndex}` : "";
+      addMetrics(
+        `direct TTS / LLM ${metrics.llm_ms || 0} ms${ttftPart}${ttsChunkPart} / voice wait ${voiceWaitMs} ms / node ${liveAudioStream.node}${sentencePart}`
+      );
+    }
+
+    function handleLiveAudioChunk(arrayBuffer) {
+      if (!liveAudioStream || !arrayBuffer || !arrayBuffer.byteLength || !audioContext) return;
+      audioContext.resume().catch(() => {});
+      const samples = pcm16ToFloat32(arrayBuffer);
+      if (!samples.length) return;
+
+      const audioBuffer = audioContext.createBuffer(1, samples.length, liveAudioStream.sampleRate);
+      audioBuffer.copyToChannel(samples, 0);
+
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContext.destination);
+      liveAudioSources.push(source);
+
+      const startAt = Math.max(audioContext.currentTime + 0.015, liveAudioStream.nextTime);
+      source.start(startAt);
+      liveAudioStream.nextTime = startAt + audioBuffer.duration;
+      liveAudioNextTime = liveAudioStream.nextTime;
+      showLiveAgentTurn();
+    }
+
+    function endLiveAgentAudio(data) {
+      if (!liveAudioStream || liveAudioStream.streamId !== data.stream_id) return;
+      const stream = liveAudioStream;
+      stream.ended = true;
+      stream.metrics = { ...stream.metrics, ...data };
+      if (!stream.shown) showLiveAgentTurn();
+      const waitMs = Math.max(0, Math.round((stream.nextTime - audioContext.currentTime) * 1000)) + 40;
+      clearTimeout(stream.doneTimer);
+      stream.doneTimer = setTimeout(() => {
+        liveAudioSources = liveAudioSources.filter(src => {
+          try { src.disconnect(); } catch (_) {}
+          return false;
+        });
+        liveAudioActiveStreams = Math.max(0, liveAudioActiveStreams - 1);
+        if (liveAudioStream === stream) liveAudioStream = null;
+        if (liveAudioActiveStreams === 0) aiSpeaking = false;
+        if (streamTurnDone) finishStreamingTurn();
+      }, waitMs);
+    }
+
+    function resetStreamingTurn(data = {}) {
+      sentenceQueue = [];
+      sentencePlaybackActive = false;
+      streamTurnDone = false;
+      streamDonePayload = null;
+      streamAssistantText = "";
+      streamMetrics = {
+        node: data.node || "n/a",
+        routing_ms: data.routing_ms || 0,
+        ttft_ms: null,
+        ttfa_ms: null,
+        llm_ms: 0,
+        total_ms: 0
+      };
+    }
+
+    function enqueueAgentSentence(data) {
+      sentenceQueue.push(data);
+      drainSentenceQueue();
+    }
+
+    async function drainSentenceQueue() {
+      if (sentencePlaybackActive) return;
+      sentencePlaybackActive = true;
+      while (sentenceQueue.length && active) {
+        const item = sentenceQueue.shift();
+        const sentence = item.sentence || "";
+        if (!sentence) continue;
+        streamAssistantText = `${streamAssistantText} ${sentence}`.trim();
+        await playAgentAudio(sentence, item.audio_url, {
+          node: item.node || streamMetrics.node || "n/a",
+          llm_ms: item.elapsed_ms || 0,
+          ttft_ms: streamMetrics.ttft_ms,
+          ttfa_ms: streamMetrics.ttfa_ms,
+          sentence_index: item.sentence_index
+        }, {
+          appendHistory: false,
+          resumeAfter: false
+        });
+      }
+      sentencePlaybackActive = false;
+      if (streamTurnDone) finishStreamingTurn();
+    }
+
+    function finishStreamingTurn() {
+      if (!streamTurnDone || sentencePlaybackActive || sentenceQueue.length || liveAudioActiveStreams > 0) return;
+      const data = streamDonePayload || {};
+      const fullText = (data.speech || streamAssistantText || "").trim();
+      currentState = data.next_state || currentState;
+      if (fullText) history.push({ role: "assistant", content: fullText });
+      addMetrics(
+        `stream TTFT ${data.ttft_ms ?? "n/a"} ms / TTFA ${data.ttfa_ms ?? "n/a"} ms / LLM ${data.llm_ms || 0} ms / total ${data.total_ms || 0} ms / node ${data.node || streamMetrics.node || "n/a"}`
+      );
+      if (active && currentState !== "ended") {
+        canSendAudio = true;
+        setStatus("Listening");
+        setCallState("Listening");
+      }
+      if (currentState === "ended") stopDemo();
+      streamTurnDone = false;
+      streamDonePayload = null;
+    }
+
+    function handleStreamEvent(data) {
+      if (data.type === "interim") {
+        heardLabel.textContent = `hearing: ${data.transcript.slice(0, 42)}`;
+        return;
+      }
+      if (data.type === "user_final") {
+        canSendAudio = false;
+        resetStreamingTurn();
+        setStatus("Thinking");
+        setCallState("Thinking");
+        heardLabel.textContent = `heard: ${data.transcript.slice(0, 42)}`;
+        addBubble("user", data.transcript);
+        history.push({ role: "user", content: data.transcript });
+        return;
+      }
+      if (data.type === "agent_response_start") {
+        resetStreamingTurn(data);
+        setStatus("AI drafting");
+        setCallState("AI drafting");
+        return;
+      }
+      if (data.type === "agent_first_token") {
+        streamMetrics.ttft_ms = data.ttft_ms;
+        return;
+      }
+      if (data.type === "agent_audio_start") {
+        startLiveAgentAudio(data);
+        return;
+      }
+      if (data.type === "agent_audio_first_chunk") {
+        if (liveAudioStream && liveAudioStream.streamId === data.stream_id) {
+          liveAudioStream.metrics = { ...liveAudioStream.metrics, ...data };
+        }
+        return;
+      }
+      if (data.type === "agent_audio_end") {
+        endLiveAgentAudio(data);
+        return;
+      }
+      if (data.type === "agent_sentence") {
+        enqueueAgentSentence(data);
+        return;
+      }
+      if (data.type === "agent_response_done") {
+        streamTurnDone = true;
+        streamDonePayload = data;
+        streamMetrics.llm_ms = data.llm_ms || 0;
+        streamMetrics.ttfa_ms = data.ttfa_ms ?? null;
+        finishStreamingTurn();
+        return;
+      }
+      if (data.type === "agent_response") {
+        currentState = data.next_state || currentState;
+        playAgentAudio(data.speech, data.audio_url, {
+          stt_ms: data.stt_ms || 0,
+          llm_ms: data.llm_ms || 0,
+          ttft_ms: data.ttft_ms,
+          ttfa_ms: data.ttfa_ms,
+          total_ms: data.total_ms || 0,
+          node: data.node || "n/a"
+        }).then(() => {
+          if (currentState === "ended") stopDemo();
+        });
+        return;
+      }
+      if (data.type === "error") {
+        setStatus("Stream error");
+        addBubble("agent", `Streaming error: ${data.message}`);
+      }
+    }
+
+    async function playAgentAudio(text, audioUrl, metrics, options = {}) {
+      const appendHistory = options.appendHistory !== false;
+      const resumeAfter = options.resumeAfter !== false;
+      aiSpeaking = true;
+      canSendAudio = false;
+      setStatus("Preparing voice");
+      setCallState("Preparing voice");
+      const audioRequestedAt = performance.now();
+      let shown = false;
+
+      function showAgentTurn() {
+        if (shown) return;
+        shown = true;
+        const voiceWaitMs = Math.round(performance.now() - audioRequestedAt);
+        setStatus("AI speaking");
+        setCallState("AI speaking");
+        addBubble("agent", text);
+        if (appendHistory) history.push({ role: "assistant", content: text });
+        const perceivedTotal = (metrics.stt_ms || 0) + (metrics.llm_ms || 0) + voiceWaitMs;
+        const ttftPart = metrics.ttft_ms === undefined || metrics.ttft_ms === null ? "" : ` / TTFT ${metrics.ttft_ms} ms`;
+        const ttfaPart = metrics.ttfa_ms === undefined || metrics.ttfa_ms === null ? "" : ` / TTFA ${metrics.ttfa_ms} ms`;
+        const sentencePart = metrics.sentence_index ? ` / sentence ${metrics.sentence_index}` : "";
+        addMetrics(
+          `stream STT / LLM ${metrics.llm_ms || 0} ms${ttftPart}${ttfaPart} / voice wait ${voiceWaitMs} ms / perceived ${perceivedTotal} ms / node ${metrics.node || "n/a"}${sentencePart}`
+        );
+      }
+
+      if (audioUrl) {
+        await new Promise(resolve => {
+          currentAudio = new Audio(audioUrl);
+          currentAudio.preload = "auto";
+          currentAudio.onplaying = showAgentTurn;
+          currentAudio.onended = resolve;
+          currentAudio.onerror = () => {
+            showAgentTurn();
+            resolve();
+          };
+          currentAudio.play().catch(() => {
+            showAgentTurn();
+            resolve();
+          });
+        });
+      }
+
+      showAgentTurn();
+      currentAudio = null;
+      aiSpeaking = false;
+      if (resumeAfter && active && currentState !== "ended") {
+        canSendAudio = true;
+        setStatus("Listening");
+        setCallState("Listening");
+      }
+    }
+
+    async function startDemo() {
+      active = true;
+      canSendAudio = false;
+      currentState = "greeting";
+      history = [];
+      turnsEl.innerHTML = "";
+      heardLabel.textContent = "heard: none";
+      voiceLabel.textContent = "voice: loading";
+      toggle.classList.add("active");
+      toggle.textContent = "End Call";
+      setStatus("Starting");
+      setCallState("Starting");
+
+      try {
+        await ensureMic();
+        const config = await fetch(`/api/demo-config?ts=${Date.now()}`, { cache: "no-store" }).then(res => res.json());
+        patientContext = config.patient_context;
+        voiceLabel.textContent = `${config.stt_engine || "stt"} ${config.stt_sample_rate || ""}Hz / ${config.tts_engine || "tts"} ${config.tts_sample_rate || ""}Hz`;
+        try {
+          await connectStream();
+        } catch (streamError) {
+          setStatus("Retrying STT stream");
+          if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+          ws = null;
+          await new Promise(resolve => setTimeout(resolve, 1200));
+          await connectStream();
+        }
+        const speech = await fetch(`/api/speak?ts=${Date.now()}`, {
+          method: "POST",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: config.greeting })
+        }).then(res => res.json());
+        await playAgentAudio(config.greeting, speech.audio_url, {
+          stt_ms: 0,
+          llm_ms: 0,
+          total_ms: 0,
+          node: "greeting_opening"
+        });
+      } catch (error) {
+        addBubble("agent", `Could not start the demo: ${error.message || error}`);
+        stopDemo();
+      }
+    }
+
+    function stopDemo() {
+      active = false;
+      canSendAudio = false;
+      aiSpeaking = false;
+      sentenceQueue = [];
+      sentencePlaybackActive = false;
+      streamTurnDone = false;
+      streamDonePayload = null;
+      streamAssistantText = "";
+      if (liveAudioStream && liveAudioStream.doneTimer) clearTimeout(liveAudioStream.doneTimer);
+      liveAudioStream = null;
+      liveAudioNextTime = 0;
+      liveAudioActiveStreams = 0;
+      liveAudioSources.forEach(src => {
+        try { src.stop(); } catch (_) {}
+        try { src.disconnect(); } catch (_) {}
+      });
+      liveAudioSources = [];
+      toggle.classList.remove("active");
+      toggle.textContent = "Start Demo";
+      setStatus("Ready");
+      setCallState("Idle");
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "stop" }));
+        ws.close();
+      }
+      ws = null;
+
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+
+      if (workletNode) {
+        workletNode.disconnect();
+        workletNode = null;
+      }
+      if (micStream) {
+        micStream.getTracks().forEach(track => track.stop());
+        micStream = null;
+      }
+      if (audioContext) {
+        audioContext.close().catch(() => {});
+        audioContext = null;
+      }
+      analyser = null;
+      waveformData = null;
+    }
+
+    function drawMeter() {
+      requestAnimationFrame(drawMeter);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = active ? "#0e7c66" : "#98a2b3";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+
+      if (analyser && waveformData) {
+        analyser.getByteTimeDomainData(waveformData);
+        const slice = canvas.width / waveformData.length;
+        waveformData.forEach((value, index) => {
+          const x = index * slice;
+          const y = (value / 255) * canvas.height;
+          if (index === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+      } else {
+        const y = canvas.height / 2;
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+      }
+
+      ctx.stroke();
+    }
+
+    toggle.addEventListener("click", () => {
+      if (active) stopDemo();
+      else startDemo();
+    });
+
+    drawMeter();
+  </script>
+</body>
+</html>
